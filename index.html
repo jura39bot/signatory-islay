@@ -3,384 +3,402 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🥃 Signatory Vintage — Islay Whisky Tracker</title>
+<title>🥃 Signatory Islay — Ma liste</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; display: flex; flex-direction: column; height: 100vh; }
+:root {
+  --bg: #13100e;
+  --card: #1e1a16;
+  --border: #332d26;
+  --gold: #c8a050;
+  --gold-dim: #7a6030;
+  --text: #e8ddd0;
+  --muted: #7a7060;
+  --green: #4caf50;
+  --blue: #5b9bd5;
+  --smoke: #b06020;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Georgia', serif; background: var(--bg); color: var(--text); min-height:100vh; }
 
-  header {
-    background: linear-gradient(135deg, #1a1f2e, #2d1f0e);
-    padding: 12px 20px;
-    display: flex; align-items: center; gap: 12px;
-    border-bottom: 2px solid #c8a96e;
-  }
-  header h1 { font-size: 1.15rem; color: #f0d080; }
-  header .sub { font-size: 0.75rem; color: #999; }
-  .badge { background: #c8a96e; color: #1a1000; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: bold; margin-left: auto; }
-  .updated { font-size: 0.7rem; color: #888; margin-left: 8px; }
+/* ---- HEADER ---- */
+header {
+  background: linear-gradient(to right, #1e1208, #2a1e10);
+  border-bottom: 2px solid var(--gold-dim);
+  padding: 18px 24px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+header h1 { font-size: 1.3rem; color: var(--gold); letter-spacing: 0.05em; }
+header .subtitle { font-size: 0.8rem; color: var(--muted); font-family: sans-serif; margin-top: 2px; }
+.updated-pill {
+  background: #2a1e10; border: 1px solid var(--gold-dim);
+  color: var(--muted); font-size: 0.72rem; padding: 4px 12px; border-radius: 20px;
+  font-family: monospace;
+}
 
-  .main { display: flex; flex: 1; overflow: hidden; }
-  #map { flex: 1; min-height: 300px; }
+/* ---- LAYOUT ---- */
+.page { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
 
-  .sidebar {
-    width: 400px;
-    background: #161b22;
-    overflow-y: auto;
-    border-left: 2px solid #21262d;
-  }
+/* ---- SECTION TITLE ---- */
+.section-heading {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--gold-dim); border-bottom: 1px solid var(--border);
+  padding-bottom: 6px; margin: 28px 0 14px 0;
+}
 
-  .tabs {
-    display: flex;
-    background: #0d1117;
-    position: sticky; top: 0; z-index: 100;
-    border-bottom: 1px solid #21262d;
-  }
-  .tab {
-    flex: 1; padding: 10px 4px; text-align: center; cursor: pointer;
-    font-size: 0.72rem; color: #888; border-bottom: 3px solid transparent;
-  }
-  .tab.active { color: #c8a96e; border-bottom-color: #c8a96e; }
+/* ---- CARTE ---- */
+#map {
+  width: 100%; height: 320px; border-radius: 12px;
+  border: 1px solid var(--border); margin-bottom: 8px;
+}
+.map-legend {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 6px;
+  font-size: 0.72rem; font-family: sans-serif; color: var(--muted);
+}
+.leg { display: flex; align-items: center; gap: 5px; }
+.leg-dot { width:10px; height:10px; border-radius:50%; }
 
-  .tab-content { display: none; padding: 12px; }
-  .tab-content.active { display: block; }
+/* ---- FILTRES ---- */
+.filters {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.f-btn {
+  font-size: 0.75rem; font-family: sans-serif;
+  padding: 5px 14px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--card); color: var(--muted);
+  transition: all 0.15s;
+}
+.f-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+.f-btn.on { background: var(--gold); color: #1a1000; border-color: var(--gold); font-weight: bold; }
 
-  .bottle-card {
-    background: #21262d;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-left: 4px solid #c8a96e;
-    position: relative;
-  }
-  .bottle-card.caolila { border-left-color: #3a8fd1; }
-  .bottle-card.ardbeg { border-left-color: #2ecc71; }
-  .bottle-card.laphroaig { border-left-color: #9b59b6; }
-  .bottle-card.out { border-left-color: #555; opacity: 0.6; }
+/* ---- BOTTLE CARD ---- */
+.bottle-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+.bottle-card:hover { border-color: var(--gold-dim); }
+.bottle-card.out { opacity: 0.5; }
 
-  .bottle-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-  .distillery-badge {
-    font-size: 0.65rem; font-weight: bold; padding: 2px 8px;
-    border-radius: 12px; flex-shrink: 0; margin-top: 2px;
-  }
-  .bowmore .distillery-badge { background: #c8a96e22; color: #c8a96e; border: 1px solid #c8a96e; }
-  .caolila .distillery-badge { background: #3a8fd122; color: #3a8fd1; border: 1px solid #3a8fd1; }
-  .ardbeg .distillery-badge { background: #2ecc7122; color: #2ecc71; border: 1px solid #2ecc71; }
-  .laphroaig .distillery-badge { background: #9b59b622; color: #9b59b6; border: 1px solid #9b59b6; }
+.bottle-top { display: flex; align-items: flex-start; gap: 10px; }
+.dist-tag {
+  font-size: 0.65rem; font-family: sans-serif; font-weight: bold;
+  padding: 2px 9px; border-radius: 10px; flex-shrink: 0; margin-top: 3px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.bowmore .dist-tag { background:#2a2010; color:#c8a050; border:1px solid #c8a05060; }
+.caolila .dist-tag { background:#102030; color:#5b9bd5; border:1px solid #5b9bd560; }
+.ardbeg  .dist-tag { background:#102010; color:#4caf50; border:1px solid #4caf5060; }
+.laphroaig .dist-tag { background:#201030; color:#a060d0; border:1px solid #a060d060; }
 
-  .bottle-name { font-size: 0.85rem; color: #e6edf3; font-weight: 600; flex: 1; }
-  .bottle-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-  .chip {
-    font-size: 0.68rem; padding: 2px 8px; border-radius: 10px;
-    background: #0d1117; color: #888; border: 1px solid #30363d;
-  }
-  .chip.peated { color: #e67e22; border-color: #e67e22; }
-  .chip.abv { color: #58a6ff; border-color: #58a6ff; }
-  .chip.price { color: #2ecc71; border-color: #2ecc71; font-weight: bold; }
-  .chip.out-of-stock { color: #555; border-color: #333; }
+.bottle-name { font-size: 0.95rem; color: var(--text); line-height: 1.4; }
+.bottle-vintage { font-size: 0.78rem; color: var(--muted); font-family: sans-serif; margin-top: 3px; }
 
-  .bottle-footer { display: flex; align-items: center; gap: 8px; }
-  .btn-buy {
-    font-size: 0.72rem; padding: 5px 12px; border-radius: 6px;
-    background: #c8a96e; color: #1a1000; font-weight: bold;
-    text-decoration: none; display: inline-block;
-    transition: background 0.2s;
-  }
-  .btn-buy:hover { background: #e0c080; }
-  .btn-buy.disabled { background: #333; color: #666; pointer-events: none; }
-  .shipping { font-size: 0.68rem; color: #888; flex: 1; }
-  .stock-badge {
-    font-size: 0.65rem; padding: 2px 8px; border-radius: 10px;
-  }
-  .in-stock { background: #1a3a2a; color: #2ecc71; border: 1px solid #2ecc71; }
-  .no-stock { background: #2a1a1a; color: #e74c3c; border: 1px solid #e74c3c; }
+.bottle-tags {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
+}
+.tag {
+  font-size: 0.68rem; font-family: sans-serif;
+  padding: 2px 8px; border-radius: 8px; border: 1px solid var(--border);
+  color: var(--muted);
+}
+.tag.smoke { color: var(--smoke); border-color: #80401080; }
+.tag.abv   { color: var(--blue); border-color: #3060a060; }
+.tag.cask  { color: #c08040; border-color: #80501080; }
 
-  .section-title {
-    font-size: 0.8rem; color: #888; text-transform: uppercase;
-    letter-spacing: 0.05em; margin: 12px 0 8px 0; padding-bottom: 4px;
-    border-bottom: 1px solid #21262d;
-  }
+.bottle-right {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 8px; justify-content: space-between;
+}
+.price-block { text-align: right; }
+.price { font-size: 1.4rem; font-weight: bold; color: var(--gold); font-family: sans-serif; }
+.price.na { font-size: 0.85rem; color: var(--muted); }
+.shipping { font-size: 0.68rem; color: var(--muted); font-family: sans-serif; }
 
-  .info-box {
-    background: #21262d; border-radius: 8px; padding: 12px; margin-bottom: 10px;
-  }
-  .info-box h3 { color: #c8a96e; font-size: 0.85rem; margin-bottom: 8px; }
-  .info-box ul { list-style: none; font-size: 0.78rem; line-height: 2; color: #ccc; }
-  .info-box ul li::before { content: "→ "; color: #c8a96e; }
+.stock-badge {
+  font-size: 0.68rem; font-family: sans-serif;
+  padding: 3px 10px; border-radius: 10px; font-weight: bold;
+}
+.instock  { background: #0f2a0f; color: var(--green); border: 1px solid #4caf5040; }
+.nostock  { background: #2a0f0f; color: #c05050; border: 1px solid #c0505040; }
 
-  .site-card {
-    background: #21262d; border-radius: 8px; padding: 10px; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .site-card .site-name { font-size: 0.85rem; font-weight: 600; color: #f0d080; }
-  .site-card .site-meta { font-size: 0.72rem; color: #888; }
-  .site-card a { font-size: 0.72rem; color: #58a6ff; margin-left: auto; }
+.btn-go {
+  font-size: 0.72rem; font-family: sans-serif;
+  padding: 6px 14px; border-radius: 8px; text-decoration: none;
+  background: var(--gold); color: #1a1000; font-weight: bold;
+  transition: background 0.15s;
+}
+.btn-go:hover { background: #e0c070; }
+.btn-go.dim { background: #2a2318; color: var(--muted); }
 
-  #filter-bar {
-    display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 12px;
-    background: #0d1117; border-bottom: 1px solid #21262d; position: sticky; top: 41px; z-index: 99;
-  }
-  .filter-btn {
-    font-size: 0.7rem; padding: 4px 10px; border-radius: 12px;
-    border: 1px solid #30363d; background: #21262d; color: #ccc; cursor: pointer;
-  }
-  .filter-btn.active { background: #c8a96e; color: #1a1000; border-color: #c8a96e; font-weight: bold; }
+.bottle-note { font-size: 0.72rem; color: var(--muted); font-family: sans-serif; margin-top: 6px; font-style: italic; }
+.bottle-site { font-size: 0.68rem; color: var(--muted); font-family: sans-serif; margin-top: 4px; }
 
-  @media (max-width: 700px) {
-    .main { flex-direction: column; }
-    .sidebar { width: 100%; max-height: 55vh; border-left: none; border-top: 2px solid #21262d; }
-    #map { min-height: 45vh; }
-  }
+/* ---- SITES ---- */
+.sites-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media(max-width:600px) { .sites-grid { grid-template-columns: 1fr; } }
+
+.site-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px;
+}
+.site-card h3 { font-size: 0.85rem; color: var(--gold); margin-bottom: 6px; }
+.site-card .franco { font-size: 0.78rem; color: var(--green); margin-bottom: 4px; font-family: sans-serif; }
+.site-card .note { font-size: 0.72rem; color: var(--muted); font-family: sans-serif; margin-bottom: 10px; }
+.site-card a { font-size: 0.72rem; font-family: sans-serif; color: #5b9bd5; }
+
+/* ---- DISTILLERY TABLE ---- */
+.dist-table { width:100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.8rem; }
+.dist-table th { color: var(--muted); font-weight: normal; text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.dist-table td { padding: 9px 10px; border-bottom: 1px solid #1a1610; vertical-align: top; }
+.dist-table tr:hover td { background: #1e1a14; }
+.dist-name { font-weight: bold; }
+.ppm-bar { display: flex; align-items: center; gap: 6px; }
+.ppm-fill { height: 6px; border-radius: 3px; background: var(--smoke); }
+.sv-yes { color: var(--green); }
+.sv-no  { color: var(--muted); }
+
+/* ---- CRON INFO ---- */
+.cron-box {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 18px; font-family: sans-serif; font-size: 0.78rem; color: var(--muted);
+  display: flex; align-items: center; gap: 12px; margin-top: 20px;
+}
+.cron-box .icon { font-size: 1.4rem; }
+.cron-box a { color: #5b9bd5; }
+
+/* ---- NO RESULTS ---- */
+.empty { text-align: center; color: var(--muted); font-family: sans-serif; padding: 30px; font-size: 0.85rem; }
 </style>
 </head>
 <body>
 
 <header>
-  <div style="font-size:1.5rem">🥃</div>
   <div>
-    <h1>Signatory Vintage — Islay Tracker</h1>
-    <div class="sub">Veille prix France · Carte distilleries Islay · Maj hebdo</div>
+    <h1>🥃 Signatory Vintage — Islay</h1>
+    <div class="subtitle">Ma veille whisky · Distilleries Islay · Prix France</div>
   </div>
-  <div>
-    <span class="badge" id="stock-count">⏳</span>
-    <span class="updated" id="updated-date"></span>
-  </div>
+  <div class="updated-pill" id="updated">Màj : 2026-03-04</div>
 </header>
 
-<div class="main">
+<div class="page">
+
+  <!-- CARTE -->
+  <div class="section-heading">🗺️ Carte des distilleries — Île d'Islay, Écosse</div>
   <div id="map"></div>
+  <div class="map-legend">
+    <div class="leg"><div class="leg-dot" style="background:#c8a050;border:2px solid #c8a050"></div> Signatory dispo</div>
+    <div class="leg"><div class="leg-dot" style="background:#333;border:2px solid #555"></div> Pas de Signatory trouvé</div>
+    <div class="leg"><div class="leg-dot" style="background:#5b9bd5"></div> Caol Ila</div>
+    <div class="leg"><div class="leg-dot" style="background:#c8a050"></div> Bowmore</div>
+    <div class="leg"><div class="leg-dot" style="background:#4caf50"></div> Ardbeg</div>
+    <div class="leg"><div class="leg-dot" style="background:#a060d0"></div> Laphroaig</div>
+  </div>
 
-  <div class="sidebar">
-    <div class="tabs">
-      <div class="tab active" onclick="showTab('bouteilles', this)">🥃 Bouteilles</div>
-      <div class="tab" onclick="showTab('sites', this)">🛒 Sites</div>
-      <div class="tab" onclick="showTab('distilleries', this)">🏭 Distilleries</div>
+  <!-- BOUTEILLES EN STOCK -->
+  <div class="section-heading">✅ En stock en France</div>
+
+  <div class="filters">
+    <button class="f-btn on" onclick="filter('all',this)">Tout voir</button>
+    <button class="f-btn" onclick="filter('Bowmore',this)">Bowmore</button>
+    <button class="f-btn" onclick="filter('Caol Ila',this)">Caol Ila</button>
+    <button class="f-btn" onclick="filter('Ardbeg',this)">Ardbeg</button>
+    <button class="f-btn" onclick="filter('Laphroaig',this)">Laphroaig</button>
+  </div>
+
+  <div id="list-instock"></div>
+
+  <!-- HORS STOCK -->
+  <div class="section-heading">📦 Old & Rare — Prix sur demande</div>
+  <div id="list-outstock"></div>
+
+  <!-- SITES D'ACHAT -->
+  <div class="section-heading">🛒 Où acheter en France</div>
+  <div class="sites-grid">
+    <div class="site-card">
+      <h3>La Maison du Whisky</h3>
+      <div class="franco">🚚 Port offert dès 130€</div>
+      <div class="note">Distributeur exclusif Signatory en France — catalogue le plus large</div>
+      <a href="https://www.whisky.fr/en/independant-bottlers/signatory-vintage.html" target="_blank">Voir Signatory Vintage →</a>
     </div>
-
-    <!-- BOUTEILLES -->
-    <div id="tab-bouteilles" class="tab-content active">
-      <div id="filter-bar">
-        <button class="filter-btn active" onclick="filterBottles('all', this)">Tout</button>
-        <button class="filter-btn" onclick="filterBottles('in_stock', this)">✅ En stock</button>
-        <button class="filter-btn" onclick="filterBottles('Bowmore', this)">Bowmore</button>
-        <button class="filter-btn" onclick="filterBottles('Caol Ila', this)">Caol Ila</button>
-        <button class="filter-btn" onclick="filterBottles('Ardbeg', this)">Ardbeg</button>
-        <button class="filter-btn" onclick="filterBottles('Laphroaig', this)">Laphroaig</button>
-      </div>
-      <div id="bottles-list" style="padding:12px"></div>
+    <div class="site-card">
+      <h3>Prestige Whisky</h3>
+      <div class="franco">🚚 Port offert dès 130€</div>
+      <div class="note">Livraison Chronopost · 5,90€ sinon · Bon stock Islay</div>
+      <a href="https://www.prestigewhisky.fr/35-signatory" target="_blank">Voir Signatory Vintage →</a>
     </div>
-
-    <!-- SITES -->
-    <div id="tab-sites" class="tab-content">
-      <div id="sites-list" style="padding:12px"></div>
-      <div class="info-box" style="margin:12px">
-        <h3>💡 Conseils achats</h3>
-        <ul>
-          <li>LMDW = distributeur exclusif Signatory en France → catalogue le plus large</li>
-          <li>Livraison offerte dès 130€ sur tous les sites principaux</li>
-          <li>Pour commander plusieurs bouteilles → grouper pour atteindre le seuil franco</li>
-          <li>Vérifier les millésimes sur <a href="https://www.whiskybase.com" style="color:#58a6ff" target="_blank">Whiskybase</a> avant d'acheter</li>
-          <li>Cask Strength + non chillfiltered = meilleur rapport intégrité/prix</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- DISTILLERIES -->
-    <div id="tab-distilleries" class="tab-content">
-      <div id="distilleries-list" style="padding:12px"></div>
+    <div class="site-card">
+      <h3>Jardin Vouvrillon</h3>
+      <div class="franco">🚚 Port offert dès 90€ ⭐</div>
+      <div class="note">Meilleur seuil franco de port · Bon rapport prix</div>
+      <a href="https://www.jardinvouvrillon.fr/whisky-ecosse/" target="_blank">Voir whiskies Islay →</a>
     </div>
   </div>
+
+  <!-- DISTILLERIES -->
+  <div class="section-heading">🏭 Les distilleries d'Islay</div>
+  <table class="dist-table">
+    <thead>
+      <tr>
+        <th>Distillerie</th>
+        <th>Tourbe</th>
+        <th>Style</th>
+        <th>Signatory</th>
+      </tr>
+    </thead>
+    <tbody id="dist-tbody"></tbody>
+  </table>
+
+  <!-- CRON -->
+  <div class="cron-box">
+    <div class="icon">🔄</div>
+    <div>
+      Mis à jour automatiquement chaque <strong>lundi à 7h</strong> via GitHub Actions.<br>
+      <a href="https://github.com/jura39bot/signatory-islay/actions" target="_blank">Voir les dernières exécutions →</a>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ---- Données distilleries Islay ----
-const distilleries = [
-  { name: "Ardbeg", lat: 55.6414, lng: -6.1002, peated: "Très tourbé (~50 ppm)", style: "Fumé, maritime, complexe", color: "#2ecc71",
-    signatory: true, flagship: "Ardbeg 10 ans", site: "https://www.ardbeg.com" },
-  { name: "Lagavulin", lat: 55.6363, lng: -6.1258, peated: "Très tourbé (~35 ppm)", style: "Fumé intense, puissant, tourbillon de complexité", color: "#e74c3c",
-    signatory: false, flagship: "Lagavulin 16 ans", site: "https://www.lagavulin.com" },
-  { name: "Laphroaig", lat: 55.6289, lng: -6.1478, peated: "Très tourbé (~40 ppm)", style: "Tourbé, médicinal, iodé", color: "#9b59b6",
-    signatory: true, flagship: "Laphroaig 10 ans", site: "https://www.laphroaig.com" },
-  { name: "Bowmore", lat: 55.7575, lng: -6.2925, peated: "Moyennement tourbé (~25 ppm)", style: "Fumé doux, floral, fruité", color: "#c8a96e",
-    signatory: true, flagship: "Bowmore 12 ans", site: "https://www.bowmore.com" },
-  { name: "Bruichladdich", lat: 55.7681, lng: -6.3639, peated: "Non/peu tourbé (sauf Port Charlotte & Octomore)", style: "Fruité, floral, maritime", color: "#3498db",
-    signatory: false, flagship: "Bruichladdich Classic Laddie", site: "https://www.bruichladdich.com" },
-  { name: "Port Charlotte", lat: 55.7356, lng: -6.3842, peated: "Très tourbé (~40 ppm)", style: "Fumé expressif, huile de moteur, goudron", color: "#e67e22",
-    signatory: false, flagship: "Port Charlotte 10 ans", site: "https://www.bruichladdich.com/port-charlotte" },
-  { name: "Kilchoman", lat: 55.7724, lng: -6.4714, peated: "Tourbé (~50 ppm)", style: "Jeune, direct, fumé agricole", color: "#1abc9c",
-    signatory: false, flagship: "Machir Bay", site: "https://www.kilchomandistillery.com" },
-  { name: "Caol Ila", lat: 55.8721, lng: -6.1043, peated: "Tourbé (~35 ppm)", style: "Fumé propre, maritime, huile, citron", color: "#3a8fd1",
-    signatory: true, flagship: "Caol Ila 12 ans", site: "https://www.malts.com/en-gb/caol-ila" },
-  { name: "Bunnahabhain", lat: 55.8838, lng: -6.1217, peated: "Peu tourbé", style: "Maritime, noisette, sherry, doux", color: "#f39c12",
-    signatory: true, flagship: "Bunnahabhain 12 ans", site: "https://www.bunnahabhain.com" },
-  { name: "Ardnahoe", lat: 55.882, lng: -6.095, peated: "Non tourbé", style: "Nouvelle distillerie (2019), style à définir", color: "#bdc3c7",
-    signatory: false, flagship: "Hudson Bay Blended", site: "https://ardnahoedistillery.com" },
+// ===================== DONNÉES =====================
+const DATA = {
+  updated: "2026-03-04",
+  bottles: [
+    { distillery:"Bowmore", name:"Bowmore 17 ans 1997", subtitle:"Cask Strength Collection", vintage:1997, age:17, abv:52.3, cask:"Bourbon barrel", peated:true, price:175, shipping:"offert dès 130€", in_stock:true, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/bowmore-17-ans-1997-s-v.html", note:"Single cask · non chillfiltered · heavily peated · distillé 25/09/1997, embouteillé 24/10/2014" },
+    { distillery:"Caol Ila", name:"Caol Ila 2007 — The Culprit", subtitle:"Chess Investigation Series", vintage:2007, age:null, abv:46.0, cask:"1st Fill Sherry + affinage", peated:true, price:165, shipping:"offert dès 130€", in_stock:true, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/caol-ila-2007-the-culprit-chess-investigation-series-col59120.html", note:"Série Chess Investigation · 7ème édition · heavily peated" },
+    { distillery:"Caol Ila", name:"Caol Ila 2007 — Oloroso CS", subtitle:"Cask Strength Collection", vintage:2007, age:16, abv:57.8, cask:"1st Fill Oloroso Sherry Butt", peated:true, price:198, shipping:"offert dès 130€", in_stock:true, site:"Prestige Whisky", url:"https://www.prestigewhisky.fr/whisky-ecossais/5282-caol-ila-2007-1st-fill-oloroso-signatory-vintage-5780-5021944119264.html", note:"Brut de fût · non chillfiltered · natural colour · 57,8%" },
+    { distillery:"Bowmore", name:"Bowmore 16 ans 2000", subtitle:"Bourbon Barrel — Nectar 10th Anniversary", vintage:2000, age:16, abv:null, cask:"Bourbon Barrel", peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/bowmore-16-ans-2000-bourbon-barrel-the-nectar-10th-anniversary-signatory-vintage.html", note:"Old and Rare" },
+    { distillery:"Bowmore", name:"Bowmore 12 ans 2002", subtitle:"Refill Sherry Cask", vintage:2002, age:12, abv:null, cask:"Refill Sherry", peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/bowmore-12-ans-2002-refill-sherry.html", note:"Old and Rare" },
+    { distillery:"Bowmore", name:"Bowmore 18 ans 2001", subtitle:"The Little Big Book", vintage:2001, age:18, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/bowmore-18-ans-2001-the-little-big-book-signatory-vintage-col56774.html", note:"Old and Rare" },
+    { distillery:"Caol Ila", name:"Caol Ila 2008 — The Victim", subtitle:"Chess Investigation Series", vintage:2008, age:null, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/caol-ila-2008-the-victim-chess-investigation-series-col57881.html", note:"Old and Rare" },
+    { distillery:"Caol Ila", name:"Caol Ila 2011 — The Accomplice", subtitle:"Chess Investigation Series", vintage:2011, age:null, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/caol-ila-2011-the-accomplice-chess-investigation-series-french-connections-col57877.html", note:"Old and Rare" },
+    { distillery:"Caol Ila", name:"Caol Ila 2011 — Whisky Live Paris 2021", subtitle:"Édition spéciale", vintage:2011, age:10, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/caol-ila-10-ans-2011-whisky-live-paris-2021-conquete-s-v-col60322.html", note:"Old and Rare · édition exclusive" },
+    { distillery:"Ardbeg", name:"Ardbeg 18 ans 1998", subtitle:"60 ans LMDW — Édition anniversaire", vintage:1998, age:18, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/ardbeg-18-ans-1998-60-ans-lmdw-signatory-vintage-col51979.html", note:"Old and Rare · très tourbé" },
+    { distillery:"Laphroaig", name:"Laphroaig 18 ans 2001", subtitle:"The Little Big Book", vintage:2001, age:18, abv:null, cask:null, peated:true, price:null, shipping:"offert dès 130€", in_stock:false, site:"La Maison du Whisky", url:"https://www.whisky.fr/en/laphroaig-18-ans-2001-the-little-big-book-signatory-vintage-col56773.html", note:"Old and Rare" },
+  ]
+};
+
+const DISTILLERIES = [
+  { name:"Ardbeg",       lat:55.6414, lng:-6.1002, ppm:50, style:"Fumé intense, maritime, complexe, épicé",    color:"#4caf50", sv:true  },
+  { name:"Lagavulin",    lat:55.6363, lng:-6.1258, ppm:35, style:"Fumé puissant, tourbe douce, sherry",         color:"#e74c3c", sv:false },
+  { name:"Laphroaig",    lat:55.6289, lng:-6.1478, ppm:40, style:"Médicinal, iodé, fumée de tourbe",            color:"#a060d0", sv:true  },
+  { name:"Bowmore",      lat:55.7575, lng:-6.2925, ppm:25, style:"Fumé doux, floral, fruité, miel",             color:"#c8a050", sv:true  },
+  { name:"Bruichladdich",lat:55.7681, lng:-6.3639, ppm:2,  style:"Fruité, floral, non tourbé (sauf PC/Octomore)",color:"#3498db", sv:false },
+  { name:"Port Charlotte",lat:55.7356,lng:-6.3842, ppm:40, style:"Fumé expressif, goudron, agrumes",            color:"#e67e22", sv:false },
+  { name:"Kilchoman",    lat:55.7724, lng:-6.4714, ppm:50, style:"Jeune, agricole, fumé direct",                color:"#1abc9c", sv:false },
+  { name:"Caol Ila",     lat:55.8721, lng:-6.1043, ppm:35, style:"Fumé propre, maritime, citron, huile",        color:"#5b9bd5", sv:true  },
+  { name:"Bunnahabhain", lat:55.8838, lng:-6.1217, ppm:5,  style:"Maritime, noisette, sherry, peu tourbé",      color:"#f39c12", sv:true  },
+  { name:"Ardnahoe",     lat:55.882,  lng:-6.095,  ppm:0,  style:"Nouvelle distillerie 2019, style en cours",   color:"#888",    sv:false },
 ];
 
-// ---- Carte Leaflet ----
-const map = L.map('map').setView([55.78, -6.22], 11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap', maxZoom: 18
+// ===================== CARTE =====================
+const map = L.map('map').setView([55.77, -6.26], 10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© OpenStreetMap · © CARTO', maxZoom:18
 }).addTo(map);
 
-// Contour île Islay (simplifié)
-const islayOutline = [
-  [55.948, -6.478],[55.93, -6.4],[55.92, -6.28],[55.9, -6.18],[55.87, -6.07],
-  [55.83, -6.03],[55.78, -6.05],[55.74, -6.03],[55.71, -6.1],[55.68, -6.18],
-  [55.63, -6.1],[55.60, -6.13],[55.59, -6.2],[55.58, -6.33],[55.6, -6.42],
-  [55.62, -6.5],[55.65, -6.58],[55.7, -6.62],[55.75, -6.65],[55.8, -6.68],
-  [55.85, -6.63],[55.89, -6.57],[55.92, -6.53],[55.948, -6.478]
-];
-L.polygon(islayOutline, { color: '#c8a96e', weight: 2, fillColor: '#c8a96e', fillOpacity: 0.06 }).addTo(map);
-
-function makeDistIcon(d) {
-  const ring = d.signatory ? `border: 3px solid ${d.color}; box-shadow: 0 0 8px ${d.color}88;` : `border: 2px solid ${d.color};`;
-  return L.divIcon({
-    html: `<div style="background:#1a1f2e;${ring}width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:${d.color};text-align:center;line-height:1.1">${d.name.split(' ')[0].substring(0,4)}</div>`,
-    iconSize: [36,36], iconAnchor: [18,18], className: ''
+DISTILLERIES.forEach(d => {
+  const size = d.sv ? 38 : 30;
+  const border = d.sv ? `3px solid ${d.color}` : `1px solid #444`;
+  const glow = d.sv ? `box-shadow:0 0 10px ${d.color}55` : '';
+  const icon = L.divIcon({
+    html: `<div style="background:#1e1a16;border:${border};${glow};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${d.sv?10:9}px;font-weight:bold;color:${d.color};text-align:center;line-height:1.1;cursor:pointer">${d.name.replace('Bruichladdich','Bruich').replace('Bunnahabhain','Bunna').replace('Port Charlotte','Port C.').replace('Ardnahoe','Ardna').substring(0,5)}</div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2], className:''
   });
-}
-
-distilleries.forEach(d => {
-  L.marker([d.lat, d.lng], { icon: makeDistIcon(d) })
+  const ppmBar = d.ppm > 0 ? `<br><small>🔥 ${d.ppm} ppm</small>` : '';
+  L.marker([d.lat, d.lng], {icon})
     .addTo(map)
-    .bindPopup(`
-      <b style="color:${d.color}">${d.name}</b><br>
-      <small>🔥 ${d.peated}</small><br>
-      <small>🥃 ${d.style}</small><br>
-      ${d.signatory ? '<small>✅ <b>Signatory disponible</b></small><br>' : '<small>🔘 Pas de Signatory trouvé</small><br>'}
-      <a href="${d.site}" target="_blank" style="font-size:11px;color:#58a6ff">Site officiel →</a>
-    `);
+    .bindPopup(`<b style="color:${d.color}">${d.name}</b>${ppmBar}<br><small>${d.style}</small><br><small>${d.sv ? '✅ <b>Signatory disponible</b>' : '⬜ Pas de Signatory trouvé'}</small>`);
 });
 
-// ---- Chargement données bouteilles ----
-let bottlesData = [];
-let sitesData = [];
-let currentFilter = 'all';
+// ===================== BOUTEILLES =====================
+let activeFilter = 'all';
 
-async function loadData() {
-  try {
-    const r = await fetch('data/bottles.json');
-    const data = await r.json();
-    bottlesData = data.bottles;
-    sitesData = data.sites;
-    document.getElementById('updated-date').textContent = 'Màj: ' + data.updated;
-    renderBottles('all');
-    renderSites();
-    renderDistilleries();
-    const inStock = bottlesData.filter(b => b.in_stock).length;
-    document.getElementById('stock-count').textContent = `${inStock} en stock`;
-  } catch(e) {
-    document.getElementById('bottles-list').innerHTML = '<p style="color:#888;padding:12px">Chargement données...</p>';
-  }
+function distClass(d) {
+  return d === 'Bowmore' ? 'bowmore' : d === 'Caol Ila' ? 'caolila' : d === 'Ardbeg' ? 'ardbeg' : d === 'Laphroaig' ? 'laphroaig' : '';
 }
 
-function distClass(name) {
-  if (name === 'Bowmore') return 'bowmore';
-  if (name === 'Caol Ila') return 'caolila';
-  if (name === 'Ardbeg') return 'ardbeg';
-  if (name === 'Laphroaig') return 'laphroaig';
-  return '';
+function renderBottles(f) {
+  activeFilter = f;
+  const all = DATA.bottles;
+  const instock = all.filter(b => b.in_stock && (f === 'all' || b.distillery === f));
+  const out = all.filter(b => !b.in_stock && (f === 'all' || b.distillery === f));
+
+  document.getElementById('list-instock').innerHTML = instock.length
+    ? instock.map(bottleHtml).join('')
+    : `<div class="empty">Aucune bouteille en stock pour ce filtre.</div>`;
+
+  document.getElementById('list-outstock').innerHTML = out.length
+    ? out.map(b => bottleHtml(b, true)).join('')
+    : `<div class="empty">Aucun résultat.</div>`;
 }
 
-function renderBottles(filter) {
-  currentFilter = filter;
-  const list = document.getElementById('bottles-list');
-  let bottles = bottlesData;
-  if (filter === 'in_stock') bottles = bottles.filter(b => b.in_stock);
-  else if (filter !== 'all') bottles = bottles.filter(b => b.distillery === filter);
-
-  if (!bottles.length) { list.innerHTML = '<p style="color:#888;padding:12px">Aucune bouteille trouvée.</p>'; return; }
-
-  // Séparer en stock / hors stock
-  const inStock = bottles.filter(b => b.in_stock);
-  const outOfStock = bottles.filter(b => !b.in_stock);
-
-  let html = '';
-  if (inStock.length) {
-    html += `<div class="section-title">✅ En stock (${inStock.length})</div>`;
-    inStock.forEach(b => html += bottleCard(b, false));
-  }
-  if (outOfStock.length) {
-    html += `<div class="section-title">📦 Hors stock / Old & Rare (${outOfStock.length})</div>`;
-    outOfStock.forEach(b => html += bottleCard(b, true));
-  }
-  list.innerHTML = html;
-}
-
-function bottleCard(b, out) {
+function bottleHtml(b, faded) {
   const dc = distClass(b.distillery);
   return `
-  <div class="bottle-card ${dc} ${out ? 'out' : ''}">
-    <div class="bottle-header">
-      <span class="distillery-badge">${b.distillery}</span>
-      <span class="bottle-name">${b.name}</span>
+  <div class="bottle-card ${dc} ${faded ? 'out' : ''}">
+    <div>
+      <div class="bottle-top">
+        <span class="dist-tag">${b.distillery}</span>
+        <div>
+          <div class="bottle-name">${b.name}</div>
+          <div class="bottle-vintage">${b.subtitle}</div>
+        </div>
+      </div>
+      <div class="bottle-tags">
+        ${b.vintage ? `<span class="tag">🗓️ Millésime ${b.vintage}</span>` : ''}
+        ${b.age ? `<span class="tag">📅 ${b.age} ans</span>` : ''}
+        ${b.abv ? `<span class="tag abv">🔢 ${b.abv}% vol.</span>` : ''}
+        ${b.cask ? `<span class="tag cask">🪣 ${b.cask}</span>` : ''}
+        ${b.peated ? `<span class="tag smoke">🔥 Tourbé</span>` : ''}
+      </div>
+      ${b.note ? `<div class="bottle-note">${b.note}</div>` : ''}
+      <div class="bottle-site">🛒 ${b.site} · 🚚 Port ${b.shipping}</div>
     </div>
-    <div class="bottle-meta">
-      ${b.vintage ? `<span class="chip">🗓️ ${b.vintage}</span>` : ''}
-      ${b.age ? `<span class="chip">📅 ${b.age} ans</span>` : ''}
-      ${b.abv ? `<span class="chip abv">🔢 ${b.abv}%</span>` : ''}
-      ${b.cask ? `<span class="chip">🪣 ${b.cask}</span>` : ''}
-      ${b.peated ? `<span class="chip peated">🔥 Tourbé</span>` : ''}
-      ${b.price_eur ? `<span class="chip price">💶 ${b.price_eur}€</span>` : '<span class="chip out-of-stock">Prix sur demande</span>'}
-    </div>
-    ${b.notes ? `<div style="font-size:0.72rem;color:#888;margin-bottom:8px">${b.notes}</div>` : ''}
-    <div class="bottle-footer">
-      <a href="${b.url}" target="_blank" class="btn-buy ${out ? 'disabled' : ''}">
-        ${b.in_stock ? '🛒 Acheter' : '🔍 Voir'}
-      </a>
-      <span class="shipping">🚚 ${b.shipping}</span>
-      <span class="stock-badge ${b.in_stock ? 'in-stock' : 'no-stock'}">${b.in_stock ? '✅ En stock' : '❌ Épuisé'}</span>
+    <div class="bottle-right">
+      <div class="price-block">
+        ${b.price ? `<div class="price">${b.price}€</div>` : `<div class="price na">Prix sur<br>demande</div>`}
+      </div>
+      <span class="stock-badge ${b.in_stock ? 'instock' : 'nostock'}">${b.in_stock ? '✅ En stock' : '📦 Épuisé'}</span>
+      <a href="${b.url}" target="_blank" class="btn-go ${!b.in_stock ? 'dim' : ''}">${b.in_stock ? 'Acheter →' : 'Voir →'}</a>
     </div>
   </div>`;
 }
 
-function renderSites() {
-  const list = document.getElementById('sites-list');
-  list.innerHTML = sitesData.map(s => `
-    <div class="site-card">
-      <div>
-        <div class="site-name">🛒 ${s.name}</div>
-        <div class="site-meta">Port offert dès ${s.shipping_free_from}€ · ${s.note}</div>
-      </div>
-      <a href="${s.signatory_page}" target="_blank">Voir Signatory →</a>
-    </div>
-  `).join('');
-}
-
-function renderDistilleries() {
-  const list = document.getElementById('distilleries-list');
-  list.innerHTML = distilleries.map(d => `
-    <div class="bottle-card" style="border-left-color:${d.color}">
-      <div class="bottle-header">
-        <div style="width:12px;height:12px;border-radius:50%;background:${d.color};flex-shrink:0;margin-top:4px"></div>
-        <div>
-          <div style="font-size:0.9rem;font-weight:600;color:${d.color}">${d.name}</div>
-          <div style="font-size:0.72rem;color:#888">🔥 ${d.peated}</div>
-        </div>
-        ${d.signatory ? '<span class="chip" style="border-color:#c8a96e;color:#c8a96e;margin-left:auto;align-self:flex-start">Signatory ✓</span>' : ''}
-      </div>
-      <div style="font-size:0.78rem;color:#ccc;margin:4px 0">🥃 ${d.style}</div>
-      <div style="font-size:0.72rem;color:#888">Flagship : ${d.flagship}</div>
-    </div>
-  `).join('');
-}
-
-function filterBottles(f, btn) {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+function filter(f, btn) {
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
   renderBottles(f);
 }
 
-function showTab(name, el) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  el.classList.add('active');
+// ===================== DISTILLERIES TABLE =====================
+function renderDist() {
+  document.getElementById('dist-tbody').innerHTML = DISTILLERIES.map(d => `
+    <tr>
+      <td><span class="dist-name" style="color:${d.color}">${d.name}</span></td>
+      <td>
+        <div class="ppm-bar">
+          <div class="ppm-fill" style="width:${Math.max(d.ppm, 4)}px;background:${d.color}"></div>
+          <span style="color:${d.color};font-size:0.75rem">${d.ppm > 0 ? d.ppm + ' ppm' : 'Non tourbé'}</span>
+        </div>
+      </td>
+      <td style="color:#a09080;font-size:0.76rem">${d.style}</td>
+      <td class="${d.sv ? 'sv-yes' : 'sv-no'}">${d.sv ? '✅ Oui' : '—'}</td>
+    </tr>
+  `).join('');
 }
 
-loadData();
+document.getElementById('updated').textContent = 'Màj : ' + DATA.updated;
+renderBottles('all');
+renderDist();
 </script>
 </body>
 </html>
