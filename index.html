@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🥃 Signatory Vintage — Islay Whisky Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; display: flex; flex-direction: column; height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #1a1f2e, #2d1f0e);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 2px solid #c8a96e;
+  }
+  header h1 { font-size: 1.15rem; color: #f0d080; }
+  header .sub { font-size: 0.75rem; color: #999; }
+  .badge { background: #c8a96e; color: #1a1000; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: bold; margin-left: auto; }
+  .updated { font-size: 0.7rem; color: #888; margin-left: 8px; }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+  #map { flex: 1; min-height: 300px; }
+
+  .sidebar {
+    width: 400px;
+    background: #161b22;
+    overflow-y: auto;
+    border-left: 2px solid #21262d;
+  }
+
+  .tabs {
+    display: flex;
+    background: #0d1117;
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 1px solid #21262d;
+  }
+  .tab {
+    flex: 1; padding: 10px 4px; text-align: center; cursor: pointer;
+    font-size: 0.72rem; color: #888; border-bottom: 3px solid transparent;
+  }
+  .tab.active { color: #c8a96e; border-bottom-color: #c8a96e; }
+
+  .tab-content { display: none; padding: 12px; }
+  .tab-content.active { display: block; }
+
+  .bottle-card {
+    background: #21262d;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 4px solid #c8a96e;
+    position: relative;
+  }
+  .bottle-card.caolila { border-left-color: #3a8fd1; }
+  .bottle-card.ardbeg { border-left-color: #2ecc71; }
+  .bottle-card.laphroaig { border-left-color: #9b59b6; }
+  .bottle-card.out { border-left-color: #555; opacity: 0.6; }
+
+  .bottle-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .distillery-badge {
+    font-size: 0.65rem; font-weight: bold; padding: 2px 8px;
+    border-radius: 12px; flex-shrink: 0; margin-top: 2px;
+  }
+  .bowmore .distillery-badge { background: #c8a96e22; color: #c8a96e; border: 1px solid #c8a96e; }
+  .caolila .distillery-badge { background: #3a8fd122; color: #3a8fd1; border: 1px solid #3a8fd1; }
+  .ardbeg .distillery-badge { background: #2ecc7122; color: #2ecc71; border: 1px solid #2ecc71; }
+  .laphroaig .distillery-badge { background: #9b59b622; color: #9b59b6; border: 1px solid #9b59b6; }
+
+  .bottle-name { font-size: 0.85rem; color: #e6edf3; font-weight: 600; flex: 1; }
+  .bottle-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .chip {
+    font-size: 0.68rem; padding: 2px 8px; border-radius: 10px;
+    background: #0d1117; color: #888; border: 1px solid #30363d;
+  }
+  .chip.peated { color: #e67e22; border-color: #e67e22; }
+  .chip.abv { color: #58a6ff; border-color: #58a6ff; }
+  .chip.price { color: #2ecc71; border-color: #2ecc71; font-weight: bold; }
+  .chip.out-of-stock { color: #555; border-color: #333; }
+
+  .bottle-footer { display: flex; align-items: center; gap: 8px; }
+  .btn-buy {
+    font-size: 0.72rem; padding: 5px 12px; border-radius: 6px;
+    background: #c8a96e; color: #1a1000; font-weight: bold;
+    text-decoration: none; display: inline-block;
+    transition: background 0.2s;
+  }
+  .btn-buy:hover { background: #e0c080; }
+  .btn-buy.disabled { background: #333; color: #666; pointer-events: none; }
+  .shipping { font-size: 0.68rem; color: #888; flex: 1; }
+  .stock-badge {
+    font-size: 0.65rem; padding: 2px 8px; border-radius: 10px;
+  }
+  .in-stock { background: #1a3a2a; color: #2ecc71; border: 1px solid #2ecc71; }
+  .no-stock { background: #2a1a1a; color: #e74c3c; border: 1px solid #e74c3c; }
+
+  .section-title {
+    font-size: 0.8rem; color: #888; text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 12px 0 8px 0; padding-bottom: 4px;
+    border-bottom: 1px solid #21262d;
+  }
+
+  .info-box {
+    background: #21262d; border-radius: 8px; padding: 12px; margin-bottom: 10px;
+  }
+  .info-box h3 { color: #c8a96e; font-size: 0.85rem; margin-bottom: 8px; }
+  .info-box ul { list-style: none; font-size: 0.78rem; line-height: 2; color: #ccc; }
+  .info-box ul li::before { content: "→ "; color: #c8a96e; }
+
+  .site-card {
+    background: #21262d; border-radius: 8px; padding: 10px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .site-card .site-name { font-size: 0.85rem; font-weight: 600; color: #f0d080; }
+  .site-card .site-meta { font-size: 0.72rem; color: #888; }
+  .site-card a { font-size: 0.72rem; color: #58a6ff; margin-left: auto; }
+
+  #filter-bar {
+    display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 12px;
+    background: #0d1117; border-bottom: 1px solid #21262d; position: sticky; top: 41px; z-index: 99;
+  }
+  .filter-btn {
+    font-size: 0.7rem; padding: 4px 10px; border-radius: 12px;
+    border: 1px solid #30363d; background: #21262d; color: #ccc; cursor: pointer;
+  }
+  .filter-btn.active { background: #c8a96e; color: #1a1000; border-color: #c8a96e; font-weight: bold; }
+
+  @media (max-width: 700px) {
+    .main { flex-direction: column; }
+    .sidebar { width: 100%; max-height: 55vh; border-left: none; border-top: 2px solid #21262d; }
+    #map { min-height: 45vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:1.5rem">🥃</div>
+  <div>
+    <h1>Signatory Vintage — Islay Tracker</h1>
+    <div class="sub">Veille prix France · Carte distilleries Islay · Maj hebdo</div>
+  </div>
+  <div>
+    <span class="badge" id="stock-count">⏳</span>
+    <span class="updated" id="updated-date"></span>
+  </div>
+</header>
+
+<div class="main">
+  <div id="map"></div>
+
+  <div class="sidebar">
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('bouteilles', this)">🥃 Bouteilles</div>
+      <div class="tab" onclick="showTab('sites', this)">🛒 Sites</div>
+      <div class="tab" onclick="showTab('distilleries', this)">🏭 Distilleries</div>
+    </div>
+
+    <!-- BOUTEILLES -->
+    <div id="tab-bouteilles" class="tab-content active">
+      <div id="filter-bar">
+        <button class="filter-btn active" onclick="filterBottles('all', this)">Tout</button>
+        <button class="filter-btn" onclick="filterBottles('in_stock', this)">✅ En stock</button>
+        <button class="filter-btn" onclick="filterBottles('Bowmore', this)">Bowmore</button>
+        <button class="filter-btn" onclick="filterBottles('Caol Ila', this)">Caol Ila</button>
+        <button class="filter-btn" onclick="filterBottles('Ardbeg', this)">Ardbeg</button>
+        <button class="filter-btn" onclick="filterBottles('Laphroaig', this)">Laphroaig</button>
+      </div>
+      <div id="bottles-list" style="padding:12px"></div>
+    </div>
+
+    <!-- SITES -->
+    <div id="tab-sites" class="tab-content">
+      <div id="sites-list" style="padding:12px"></div>
+      <div class="info-box" style="margin:12px">
+        <h3>💡 Conseils achats</h3>
+        <ul>
+          <li>LMDW = distributeur exclusif Signatory en France → catalogue le plus large</li>
+          <li>Livraison offerte dès 130€ sur tous les sites principaux</li>
+          <li>Pour commander plusieurs bouteilles → grouper pour atteindre le seuil franco</li>
+          <li>Vérifier les millésimes sur <a href="https://www.whiskybase.com" style="color:#58a6ff" target="_blank">Whiskybase</a> avant d'acheter</li>
+          <li>Cask Strength + non chillfiltered = meilleur rapport intégrité/prix</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- DISTILLERIES -->
+    <div id="tab-distilleries" class="tab-content">
+      <div id="distilleries-list" style="padding:12px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Données distilleries Islay ----
+const distilleries = [
+  { name: "Ardbeg", lat: 55.6414, lng: -6.1002, peated: "Très tourbé (~50 ppm)", style: "Fumé, maritime, complexe", color: "#2ecc71",
+    signatory: true, flagship: "Ardbeg 10 ans", site: "https://www.ardbeg.com" },
+  { name: "Lagavulin", lat: 55.6363, lng: -6.1258, peated: "Très tourbé (~35 ppm)", style: "Fumé intense, puissant, tourbillon de complexité", color: "#e74c3c",
+    signatory: false, flagship: "Lagavulin 16 ans", site: "https://www.lagavulin.com" },
+  { name: "Laphroaig", lat: 55.6289, lng: -6.1478, peated: "Très tourbé (~40 ppm)", style: "Tourbé, médicinal, iodé", color: "#9b59b6",
+    signatory: true, flagship: "Laphroaig 10 ans", site: "https://www.laphroaig.com" },
+  { name: "Bowmore", lat: 55.7575, lng: -6.2925, peated: "Moyennement tourbé (~25 ppm)", style: "Fumé doux, floral, fruité", color: "#c8a96e",
+    signatory: true, flagship: "Bowmore 12 ans", site: "https://www.bowmore.com" },
+  { name: "Bruichladdich", lat: 55.7681, lng: -6.3639, peated: "Non/peu tourbé (sauf Port Charlotte & Octomore)", style: "Fruité, floral, maritime", color: "#3498db",
+    signatory: false, flagship: "Bruichladdich Classic Laddie", site: "https://www.bruichladdich.com" },
+  { name: "Port Charlotte", lat: 55.7356, lng: -6.3842, peated: "Très tourbé (~40 ppm)", style: "Fumé expressif, huile de moteur, goudron", color: "#e67e22",
+    signatory: false, flagship: "Port Charlotte 10 ans", site: "https://www.bruichladdich.com/port-charlotte" },
+  { name: "Kilchoman", lat: 55.7724, lng: -6.4714, peated: "Tourbé (~50 ppm)", style: "Jeune, direct, fumé agricole", color: "#1abc9c",
+    signatory: false, flagship: "Machir Bay", site: "https://www.kilchomandistillery.com" },
+  { name: "Caol Ila", lat: 55.8721, lng: -6.1043, peated: "Tourbé (~35 ppm)", style: "Fumé propre, maritime, huile, citron", color: "#3a8fd1",
+    signatory: true, flagship: "Caol Ila 12 ans", site: "https://www.malts.com/en-gb/caol-ila" },
+  { name: "Bunnahabhain", lat: 55.8838, lng: -6.1217, peated: "Peu tourbé", style: "Maritime, noisette, sherry, doux", color: "#f39c12",
+    signatory: true, flagship: "Bunnahabhain 12 ans", site: "https://www.bunnahabhain.com" },
+  { name: "Ardnahoe", lat: 55.882, lng: -6.095, peated: "Non tourbé", style: "Nouvelle distillerie (2019), style à définir", color: "#bdc3c7",
+    signatory: false, flagship: "Hudson Bay Blended", site: "https://ardnahoedistillery.com" },
+];
+
+// ---- Carte Leaflet ----
+const map = L.map('map').setView([55.78, -6.22], 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap', maxZoom: 18
+}).addTo(map);
+
+// Contour île Islay (simplifié)
+const islayOutline = [
+  [55.948, -6.478],[55.93, -6.4],[55.92, -6.28],[55.9, -6.18],[55.87, -6.07],
+  [55.83, -6.03],[55.78, -6.05],[55.74, -6.03],[55.71, -6.1],[55.68, -6.18],
+  [55.63, -6.1],[55.60, -6.13],[55.59, -6.2],[55.58, -6.33],[55.6, -6.42],
+  [55.62, -6.5],[55.65, -6.58],[55.7, -6.62],[55.75, -6.65],[55.8, -6.68],
+  [55.85, -6.63],[55.89, -6.57],[55.92, -6.53],[55.948, -6.478]
+];
+L.polygon(islayOutline, { color: '#c8a96e', weight: 2, fillColor: '#c8a96e', fillOpacity: 0.06 }).addTo(map);
+
+function makeDistIcon(d) {
+  const ring = d.signatory ? `border: 3px solid ${d.color}; box-shadow: 0 0 8px ${d.color}88;` : `border: 2px solid ${d.color};`;
+  return L.divIcon({
+    html: `<div style="background:#1a1f2e;${ring}width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:${d.color};text-align:center;line-height:1.1">${d.name.split(' ')[0].substring(0,4)}</div>`,
+    iconSize: [36,36], iconAnchor: [18,18], className: ''
+  });
+}
+
+distilleries.forEach(d => {
+  L.marker([d.lat, d.lng], { icon: makeDistIcon(d) })
+    .addTo(map)
+    .bindPopup(`
+      <b style="color:${d.color}">${d.name}</b><br>
+      <small>🔥 ${d.peated}</small><br>
+      <small>🥃 ${d.style}</small><br>
+      ${d.signatory ? '<small>✅ <b>Signatory disponible</b></small><br>' : '<small>🔘 Pas de Signatory trouvé</small><br>'}
+      <a href="${d.site}" target="_blank" style="font-size:11px;color:#58a6ff">Site officiel →</a>
+    `);
+});
+
+// ---- Chargement données bouteilles ----
+let bottlesData = [];
+let sitesData = [];
+let currentFilter = 'all';
+
+async function loadData() {
+  try {
+    const r = await fetch('data/bottles.json');
+    const data = await r.json();
+    bottlesData = data.bottles;
+    sitesData = data.sites;
+    document.getElementById('updated-date').textContent = 'Màj: ' + data.updated;
+    renderBottles('all');
+    renderSites();
+    renderDistilleries();
+    const inStock = bottlesData.filter(b => b.in_stock).length;
+    document.getElementById('stock-count').textContent = `${inStock} en stock`;
+  } catch(e) {
+    document.getElementById('bottles-list').innerHTML = '<p style="color:#888;padding:12px">Chargement données...</p>';
+  }
+}
+
+function distClass(name) {
+  if (name === 'Bowmore') return 'bowmore';
+  if (name === 'Caol Ila') return 'caolila';
+  if (name === 'Ardbeg') return 'ardbeg';
+  if (name === 'Laphroaig') return 'laphroaig';
+  return '';
+}
+
+function renderBottles(filter) {
+  currentFilter = filter;
+  const list = document.getElementById('bottles-list');
+  let bottles = bottlesData;
+  if (filter === 'in_stock') bottles = bottles.filter(b => b.in_stock);
+  else if (filter !== 'all') bottles = bottles.filter(b => b.distillery === filter);
+
+  if (!bottles.length) { list.innerHTML = '<p style="color:#888;padding:12px">Aucune bouteille trouvée.</p>'; return; }
+
+  // Séparer en stock / hors stock
+  const inStock = bottles.filter(b => b.in_stock);
+  const outOfStock = bottles.filter(b => !b.in_stock);
+
+  let html = '';
+  if (inStock.length) {
+    html += `<div class="section-title">✅ En stock (${inStock.length})</div>`;
+    inStock.forEach(b => html += bottleCard(b, false));
+  }
+  if (outOfStock.length) {
+    html += `<div class="section-title">📦 Hors stock / Old & Rare (${outOfStock.length})</div>`;
+    outOfStock.forEach(b => html += bottleCard(b, true));
+  }
+  list.innerHTML = html;
+}
+
+function bottleCard(b, out) {
+  const dc = distClass(b.distillery);
+  return `
+  <div class="bottle-card ${dc} ${out ? 'out' : ''}">
+    <div class="bottle-header">
+      <span class="distillery-badge">${b.distillery}</span>
+      <span class="bottle-name">${b.name}</span>
+    </div>
+    <div class="bottle-meta">
+      ${b.vintage ? `<span class="chip">🗓️ ${b.vintage}</span>` : ''}
+      ${b.age ? `<span class="chip">📅 ${b.age} ans</span>` : ''}
+      ${b.abv ? `<span class="chip abv">🔢 ${b.abv}%</span>` : ''}
+      ${b.cask ? `<span class="chip">🪣 ${b.cask}</span>` : ''}
+      ${b.peated ? `<span class="chip peated">🔥 Tourbé</span>` : ''}
+      ${b.price_eur ? `<span class="chip price">💶 ${b.price_eur}€</span>` : '<span class="chip out-of-stock">Prix sur demande</span>'}
+    </div>
+    ${b.notes ? `<div style="font-size:0.72rem;color:#888;margin-bottom:8px">${b.notes}</div>` : ''}
+    <div class="bottle-footer">
+      <a href="${b.url}" target="_blank" class="btn-buy ${out ? 'disabled' : ''}">
+        ${b.in_stock ? '🛒 Acheter' : '🔍 Voir'}
+      </a>
+      <span class="shipping">🚚 ${b.shipping}</span>
+      <span class="stock-badge ${b.in_stock ? 'in-stock' : 'no-stock'}">${b.in_stock ? '✅ En stock' : '❌ Épuisé'}</span>
+    </div>
+  </div>`;
+}
+
+function renderSites() {
+  const list = document.getElementById('sites-list');
+  list.innerHTML = sitesData.map(s => `
+    <div class="site-card">
+      <div>
+        <div class="site-name">🛒 ${s.name}</div>
+        <div class="site-meta">Port offert dès ${s.shipping_free_from}€ · ${s.note}</div>
+      </div>
+      <a href="${s.signatory_page}" target="_blank">Voir Signatory →</a>
+    </div>
+  `).join('');
+}
+
+function renderDistilleries() {
+  const list = document.getElementById('distilleries-list');
+  list.innerHTML = distilleries.map(d => `
+    <div class="bottle-card" style="border-left-color:${d.color}">
+      <div class="bottle-header">
+        <div style="width:12px;height:12px;border-radius:50%;background:${d.color};flex-shrink:0;margin-top:4px"></div>
+        <div>
+          <div style="font-size:0.9rem;font-weight:600;color:${d.color}">${d.name}</div>
+          <div style="font-size:0.72rem;color:#888">🔥 ${d.peated}</div>
+        </div>
+        ${d.signatory ? '<span class="chip" style="border-color:#c8a96e;color:#c8a96e;margin-left:auto;align-self:flex-start">Signatory ✓</span>' : ''}
+      </div>
+      <div style="font-size:0.78rem;color:#ccc;margin:4px 0">🥃 ${d.style}</div>
+      <div style="font-size:0.72rem;color:#888">Flagship : ${d.flagship}</div>
+    </div>
+  `).join('');
+}
+
+function filterBottles(f, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBottles(f);
+}
+
+function showTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+loadData();
+</script>
+</body>
+</html>
