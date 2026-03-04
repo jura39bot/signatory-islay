@@ -1,9 +1,9 @@
-name: Weekly Signatory Update
+name: 🥃 Weekly Signatory Update
 
 on:
   schedule:
-    - cron: '0 7 * * 1'   # Chaque lundi à 7h UTC
-  workflow_dispatch:        # Déclenchement manuel possible
+    - cron: '0 7 * * 1'   # Lundi 7h UTC
+  workflow_dispatch:        # Déclenchement manuel
 
 jobs:
   update:
@@ -16,13 +16,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run update script
+      - name: Scrape & rebuild
         run: python update.py
 
-      - name: Commit & Push if changed
+      - name: Commit & Push si changement
         run: |
           git config user.name "jura39bot"
           git config user.email "jura39bot@gmail.com"
-          git add data/bottles.json
-          git diff --staged --quiet || git commit -m "🥃 Màj hebdo Signatory Islay — $(date +%Y-%m-%d)"
-          git push
+          git add data/bottles.json index.html
+          git diff --staged --quiet && echo "Rien à mettre à jour" || (
+            git commit -m "🥃 Màj hebdo — $(date +%Y-%m-%d) — $(python -c \"import json;d=json.load(open('data/bottles.json'));print(str(sum(1 for b in d['bottle'] if b.get('in_stock')))+' en stock')\" 2>/dev/null || echo 'stocks mis à jour')"
+            git push
+          )
